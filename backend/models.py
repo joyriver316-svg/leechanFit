@@ -7,6 +7,7 @@ class ProductBase(BaseModel):
     name: str
     regMonths: int
     price: int
+    durationUnit: Optional[str] = 'months'
     description: Optional[str] = None
     active: Optional[bool] = True
 

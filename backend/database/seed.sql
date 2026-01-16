@@ -1,5 +1,9 @@
 -- 샘플 데이터 삽입
 
+-- 관리자 데이터 (비밀번호: 1234)
+INSERT INTO admins (username, password, name, role) VALUES
+('admin', '1234', '관리자', 'admin');
+
 -- 코치 데이터
 INSERT INTO coaches (id, name, phone, status, specialty) VALUES
 ('C001', '이한민', '010-1234-5678', 'active', 'FPT'),

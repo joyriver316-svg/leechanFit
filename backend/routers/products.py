@@ -18,6 +18,7 @@ def get_products():
             "id": p["id"],
             "name": p["name"],
             "regMonths": p["reg_months"],
+            "durationUnit": p.get("duration_unit", "months"),
             "price": p["price"],
             "description": p["description"],
             "active": p["active"],
@@ -35,17 +36,18 @@ def create_product(product: ProductCreate):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         query = """
-            INSERT INTO products (name, reg_months, price, description, active)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO products (name, reg_months, duration_unit, price, description, active)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
         """
-        cursor.execute(query, (product.name, product.regMonths, product.price, product.description, product.active))
+        cursor.execute(query, (product.name, product.regMonths, product.durationUnit, product.price, product.description, product.active))
         conn.commit()
         new_product = cursor.fetchone()
         return {
             "id": new_product["id"],
             "name": new_product["name"],
             "regMonths": new_product["reg_months"],
+            "durationUnit": new_product.get("duration_unit", "months"),
             "price": new_product["price"],
             "description": new_product["description"],
             "active": new_product["active"],
@@ -65,11 +67,11 @@ def update_product(id: int, product: ProductUpdate):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         query = """
             UPDATE products 
-            SET name = %s, reg_months = %s, price = %s, description = %s, active = %s
+            SET name = %s, reg_months = %s, duration_unit = %s, price = %s, description = %s, active = %s
             WHERE id = %s
             RETURNING *
         """
-        cursor.execute(query, (product.name, product.regMonths, product.price, product.description, product.active, id))
+        cursor.execute(query, (product.name, product.regMonths, product.durationUnit, product.price, product.description, product.active, id))
         conn.commit()
         updated_product = cursor.fetchone()
         if not updated_product:
@@ -78,6 +80,7 @@ def update_product(id: int, product: ProductUpdate):
             "id": updated_product["id"],
             "name": updated_product["name"],
             "regMonths": updated_product["reg_months"],
+            "durationUnit": updated_product.get("duration_unit", "months"),
             "price": updated_product["price"],
             "description": updated_product["description"],
             "active": updated_product["active"],

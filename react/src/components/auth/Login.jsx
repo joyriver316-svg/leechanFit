@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Lock, User } from 'lucide-react';
 
 export default function Login({ onLogin }) {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('admin');
+    const [password, setPassword] = useState('1234');
     const [rememberId, setRememberId] = useState(false);
     const [rememberPw, setRememberPw] = useState(false);
     const [error, setError] = useState('');

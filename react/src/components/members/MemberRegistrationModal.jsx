@@ -14,6 +14,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
         phone: '',
         productId: '',
         regMonths: '',
+        durationUnit: 'months',
         price: '',
         regDate: new Date().toISOString().split('T')[0], // Default to today
         startDate: '',
@@ -32,6 +33,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
                 phone: editingMember.phone || '',
                 productId: editingMember.productId || '',
                 regMonths: editingMember.regMonths || '',
+                durationUnit: editingMember.durationUnit || 'months',
                 price: editingMember.price || '',
                 startDate: editingMember.startDate || '',
                 notes: editingMember.notes || ''
@@ -43,6 +45,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
                 phone: '',
                 productId: '',
                 regMonths: '',
+                durationUnit: 'months',
                 price: '',
                 regDate: new Date().toISOString().split('T')[0],
                 startDate: '',
@@ -58,12 +61,12 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
 
         // Auto-fill months and price when product is selected
         if (field === 'productId' && value) {
-            const product = activeProducts.find(p => p.id === value);
             if (product) {
                 setFormData(prev => ({
                     ...prev,
                     productId: value,
-                    regMonths: product.months,
+                    regMonths: product.regMonths, // Changed from product.months (backend sends regMonths)
+                    durationUnit: product.durationUnit || 'months',
                     price: product.price
                 }));
             }
@@ -75,10 +78,16 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
         }
     };
 
-    const calculateEndDate = (startDate, months) => {
-        if (!startDate || !months || months === 0) return ''; // FPT has no end date
+    const calculateEndDate = (startDate, months, unit = 'months') => {
+        if (!startDate || !months || months === 0) return '';
         const start = new Date(startDate);
-        start.setMonth(start.getMonth() + parseInt(months));
+
+        if (unit === 'days') {
+            start.setDate(start.getDate() + parseInt(months));
+        } else {
+            start.setMonth(start.getMonth() + parseInt(months));
+        }
+
         return start.toISOString().split('T')[0];
     };
 
@@ -116,7 +125,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
 
         if (!validate()) return;
 
-        const endDate = formData.endDate || calculateEndDate(formData.startDate, formData.regMonths);
+        const endDate = formData.endDate || calculateEndDate(formData.startDate, formData.regMonths, formData.durationUnit);
 
         onSubmit({
             ...formData,
@@ -131,6 +140,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
             phone: '',
             productId: '',
             regMonths: '',
+            durationUnit: 'months',
             price: '',
             startDate: '',
             notes: ''
@@ -254,7 +264,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
                         {errors.productId && <p className="text-red-500 text-xs mt-1">{errors.productId}</p>}
                         {formData.productId && (
                             <p className="text-xs text-gray-500 mt-1">
-                                기간: {formData.regMonths}개월
+                                기간: {formData.regMonths}{formData.durationUnit === 'days' ? '일' : '개월'}
                             </p>
                         )}
                     </div>
@@ -301,7 +311,7 @@ export default function MemberRegistrationModal({ isOpen, onClose, onSubmit, edi
                         />
                         {formData.startDate && formData.regMonths > 0 && !formData.endDate && (
                             <p className="text-xs text-blue-600 mt-1">
-                                자동 계산: {calculateEndDate(formData.startDate, formData.regMonths)}
+                                자동 계산: {calculateEndDate(formData.startDate, formData.regMonths, formData.durationUnit)}
                             </p>
                         )}
                     </div>

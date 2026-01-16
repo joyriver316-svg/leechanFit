@@ -13,7 +13,7 @@ def get_attendance(startDate: Optional[str] = None, endDate: Optional[str] = Non
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         query = """
-            SELECT a.*, u.name as user_name, u.type as user_type
+            SELECT a.*, u.name as user_name, 'General' as user_type
             FROM attendance a
             JOIN users u ON a.user_id = u.id
         """

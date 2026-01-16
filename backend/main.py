@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import db
-from routers import users, coaches, attendance, products, upload
+from routers import users, coaches, attendance, products, upload, auth
 
 app = FastAPI(
     title="출석 관리 시스템 API",
@@ -24,6 +24,7 @@ app.include_router(coaches.router)
 app.include_router(attendance.router)
 app.include_router(products.router)
 app.include_router(upload.router)
+app.include_router(auth.router)
 
 @app.on_event("startup")
 async def startup_event():

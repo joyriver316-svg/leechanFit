@@ -39,47 +39,84 @@ async def upload_users(file: UploadFile = File(...)):
                 name = str(row[0]).strip() if row[0] else None
                 gender = str(row[1]).strip() if row[1] else None
                 phone = str(row[2]).strip() if row[2] else None
-                product_name = str(row[3]).strip() if row[3] else None
-                reg_date = row[4] if row[4] else date.today()
-                start_date = row[5] if row[5] else date.today()
-                end_date = row[6] if row[6] else None
+                
+                # Default to "기본 회원권" if product name is missing
+                product_name = str(row[3]).strip() if row[3] else "기본 회원권"
+
+                # Helper to sanitize date inputs
+                def get_clean_value(val):
+                    if not val:
+                        return None
+                    if isinstance(val, str):
+                        cleaned = val.strip()
+                        return cleaned if cleaned else None
+                    return val
+
+                reg_date_raw = get_clean_value(row[4])
+                start_date_raw = get_clean_value(row[5])
+                end_date_raw = get_clean_value(row[6])
+
+                reg_date = reg_date_raw if reg_date_raw else date.today()
+                start_date = start_date_raw if start_date_raw else date.today()
+                end_date = end_date_raw # Can be None
+
                 remaining = int(row[7]) if row[7] and str(row[7]).strip() else 100
                 
-                # Validate required fields
-                if not all([name, gender, phone, product_name]):
+                # Validate required fields (Removed product_name from check as it now has a default)
+                if not all([name, gender, phone]):
+                    print(f"[SKIP] Row {row_idx}: 필수 정보 누락 - Name='{name}', Gender='{gender}', Phone='{phone}'")
                     errors.append(f"행 {row_idx}: 필수 정보 누락")
                     failed_count += 1
                     continue
                 
                 # Convert dates if they're strings
-                if isinstance(reg_date, str):
-                    reg_date = date.fromisoformat(reg_date)
-                if isinstance(start_date, str):
-                    start_date = date.fromisoformat(start_date)
-                if end_date and isinstance(end_date, str):
-                    end_date = date.fromisoformat(end_date)
-                
-                # Find product by name
-                cursor.execute("SELECT id, reg_months FROM products WHERE name = %s AND active = true", (product_name,))
-                product = cursor.fetchone()
-                
-                if not product:
-                    errors.append(f"행 {row_idx}: 상품 '{product_name}'을 찾을 수 없습니다")
+                try:
+                    if isinstance(reg_date, str):
+                        reg_date = date.fromisoformat(reg_date)
+                    if isinstance(start_date, str):
+                        start_date = date.fromisoformat(start_date)
+                    if end_date and isinstance(end_date, str):
+                        end_date = date.fromisoformat(end_date)
+                except ValueError as e:
+                    print(f"[VALIDATION ERROR] Row {row_idx}: 날짜 형식 오류 ({str(e)}) - Data: {row}")
+                    errors.append(f"행 {row_idx}: 날짜 형식이 잘못되었습니다 ({str(e)})")
                     failed_count += 1
                     continue
                 
+                # Find product by name
+                cursor.execute("SELECT id, reg_months, duration_unit FROM products WHERE name = %s AND active = true", (product_name,))
+                product = cursor.fetchone()
+
+                if not product:
+                    # Auto-create product if not found
+                    # Default: 99 months, 0 price, active
+                    print(f"Auto-creating product: {product_name}")
+                    cursor.execute("""
+                        INSERT INTO products (name, reg_months, duration_unit, price, description, active)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id, reg_months, duration_unit
+                    """, (product_name, 99, 'months', 0, "Excel 업로드로 자동 생성된 상품", True))
+                    conn.commit()
+                    product = cursor.fetchone()
+                
                 product_id = product['id']
                 reg_months = product['reg_months']
+                duration_unit = product.get('duration_unit', 'months')
                 
-                # Calculate end_date only if reg_months > 0 (not FPT/횟수권)
+                # Calculate end_date only if reg_months > 0
                 if not end_date and reg_months and reg_months > 0:
-                    target_month = start_date.month + reg_months
-                    year_diff = (target_month - 1) // 12
-                    new_year = start_date.year + year_diff
-                    new_month = (target_month - 1) % 12 + 1
-                    last_day_of_new_month = calendar.monthrange(new_year, new_month)[1]
-                    new_day = min(start_date.day, last_day_of_new_month)
-                    end_date = date(new_year, new_month, new_day)
+                    if duration_unit == 'months':
+                        target_month = start_date.month + reg_months
+                        year_diff = (target_month - 1) // 12
+                        new_year = start_date.year + year_diff
+                        new_month = (target_month - 1) % 12 + 1
+                        last_day_of_new_month = calendar.monthrange(new_year, new_month)[1]
+                        new_day = min(start_date.day, last_day_of_new_month)
+                        end_date = date(new_year, new_month, new_day)
+                    elif duration_unit == 'days':
+                         from datetime import timedelta
+                         end_date = start_date + timedelta(days=reg_months)
+                # If reg_months is 0 or None (FPT), end_date remains None
                 # If reg_months is 0 or None (FPT), end_date remains None
                 
                 # Generate user ID
@@ -98,9 +135,14 @@ async def upload_users(file: UploadFile = File(...)):
                     reg_date, start_date, end_date, remaining
                 ))
                 
+                print(f"[SUCCESS] Row {row_idx}: Created User {name} (ID: {user_id})")
                 success_count += 1
                 
             except Exception as e:
+                print(f"---------- [UPLOAD ERROR] Row {row_idx} ----------")
+                print(f"Error: {str(e)}")
+                print(f"Row Data: {row}")
+                print("--------------------------------------------------")
                 errors.append(f"행 {row_idx}: {str(e)}")
                 failed_count += 1
                 continue
