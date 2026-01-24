@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, X, Check, UserCircle } from 'lucide-react';
-import { COACHES as INITIAL_COACHES } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, X, Check, UserCircle, Loader2 } from 'lucide-react';
 
 export default function CoachManagement() {
-    const [coaches, setCoaches] = useState(INITIAL_COACHES);
+    const [coaches, setCoaches] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCoach, setEditingCoach] = useState(null);
     const [formData, setFormData] = useState({ name: '', phone: '', specialty: 'FPT', status: 'active' });
+
+    // Fetch coaches from API
+    const fetchCoaches = async () => {
+        try {
+            const response = await fetch('/api/coaches/');
+            if (response.ok) {
+                const data = await response.json();
+                setCoaches(data);
+            }
+        } catch (error) {
+            console.error('코치 목록 조회 오류:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCoaches();
+    }, []);
 
     const handleAdd = () => {
         setEditingCoach(null);
@@ -20,40 +39,81 @@ export default function CoachManagement() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (confirm('정말 삭제하시겠습니까?')) {
-            setCoaches(coaches.filter(c => c.id !== id));
+            try {
+                const response = await fetch(`/api/coaches/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    fetchCoaches();
+                } else {
+                    alert('삭제 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                alert('삭제 중 오류가 발생했습니다.');
+            }
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!formData.name || !formData.phone) {
             alert('이름과 전화번호를 입력해주세요.');
             return;
         }
 
-        if (editingCoach) {
-            // Edit existing
-            setCoaches(coaches.map(c => c.id === editingCoach.id ? { ...c, ...formData } : c));
-        } else {
-            // Add new
-            const newCoach = {
-                id: `C${String(coaches.length + 1).padStart(3, '0')}`,
-                ...formData
-            };
-            setCoaches([...coaches, newCoach]);
+        try {
+            if (editingCoach) {
+                // Edit existing
+                const response = await fetch(`/api/coaches/${editingCoach.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (!response.ok) throw new Error('수정 실패');
+            } else {
+                // Add new
+                const response = await fetch('/api/coaches/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (!response.ok) throw new Error('추가 실패');
+            }
+            fetchCoaches();
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error('저장 오류:', error);
+            alert('저장 중 오류가 발생했습니다.');
         }
-        setIsModalOpen(false);
     };
 
-    const toggleStatus = (id) => {
-        setCoaches(coaches.map(c =>
-            c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c
-        ));
+    const toggleStatus = async (id) => {
+        const coach = coaches.find(c => c.id === id);
+        const newStatus = coach.status === 'active' ? 'inactive' : 'active';
+        try {
+            const response = await fetch(`/api/coaches/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (response.ok) {
+                fetchCoaches();
+            }
+        } catch (error) {
+            console.error('상태 변경 오류:', error);
+        }
     };
 
     const activeCoaches = coaches.filter(c => c.status === 'active');
     const inactiveCoaches = coaches.filter(c => c.status === 'inactive');
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

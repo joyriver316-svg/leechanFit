@@ -21,9 +21,9 @@ class Database:
                     user=os.getenv("DB_USER"),
                     password=os.getenv("DB_PASSWORD")
                 )
-                print("✅ PostgreSQL 데이터베이스에 연결되었습니다.")
+                print("[OK] PostgreSQL DB connected.")
             except Exception as e:
-                print(f"❌ 데이터베이스 연결 오류: {e}")
+                print(f"[ERROR] DB connection failed: {e}")
                 raise e
 
     @classmethod

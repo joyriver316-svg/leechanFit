@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, X, Shield, User } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Shield, User } from 'lucide-react';
 import Toast from '../common/Toast';
 
 export default function AdminManagement() {
     const [admins, setAdmins] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAdmin, setEditingAdmin] = useState(null);
     const [formData, setFormData] = useState({ username: '', password: '', name: '', role: 'admin' });
     const [toastMessage, setToastMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -54,31 +55,68 @@ export default function AdminManagement() {
         }
     };
 
+    const handleAdd = () => {
+        setEditingAdmin(null);
+        setFormData({ username: '', password: '', name: '', role: 'admin' });
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (admin) => {
+        setEditingAdmin(admin);
+        setFormData({ username: admin.username, password: '', name: admin.name, role: admin.role });
+        setIsModalOpen(true);
+    };
+
     const handleSubmit = async () => {
-        if (!formData.username || !formData.password || !formData.name) {
-            alert('모든 필드를 입력해주세요.');
+        if (!formData.name) {
+            alert('이름을 입력해주세요.');
+            return;
+        }
+        if (!editingAdmin && (!formData.username || !formData.password)) {
+            alert('아이디와 비밀번호를 입력해주세요.');
             return;
         }
 
         try {
-            const response = await fetch('/api/admins', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-
-            if (response.ok) {
-                setToastMessage('✓ 새 사용자가 등록되었습니다.');
-                fetchAdmins();
-                setIsModalOpen(false);
-                setFormData({ username: '', password: '', name: '', role: 'admin' });
+            if (editingAdmin) {
+                // 수정
+                const updateData = { name: formData.name, role: formData.role };
+                if (formData.password) {
+                    updateData.password = formData.password;
+                }
+                const response = await fetch(`/api/admins/${editingAdmin.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                if (response.ok) {
+                    setToastMessage('✓ 사용자 정보가 수정되었습니다.');
+                    fetchAdmins();
+                    setIsModalOpen(false);
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || '수정 실패');
+                }
             } else {
-                const data = await response.json();
-                alert(data.error || '등록 실패');
+                // 추가
+                const response = await fetch('/api/admins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (response.ok) {
+                    setToastMessage('✓ 새 사용자가 등록되었습니다.');
+                    fetchAdmins();
+                    setIsModalOpen(false);
+                    setFormData({ username: '', password: '', name: '', role: 'admin' });
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || '등록 실패');
+                }
             }
         } catch (error) {
             console.error('Submit error:', error);
-            setToastMessage('❌ 등록 중 오류가 발생했습니다.');
+            setToastMessage('❌ 저장 중 오류가 발생했습니다.');
         }
     };
 
@@ -91,7 +129,7 @@ export default function AdminManagement() {
                     <p className="text-sm text-gray-500 mt-1">시스템 접속이 가능한 관리자 계정을 관리합니다.</p>
                 </div>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={handleAdd}
                     className="flex items-center space-x-2 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg font-bold transition-colors"
                 >
                     <Plus size={20} />
@@ -137,6 +175,13 @@ export default function AdminManagement() {
                                             {new Date(admin.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleEdit(admin)}
+                                                className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-full transition-colors mr-1"
+                                                title="수정"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
                                             {admin.username !== 'admin' && (
                                                 <button
                                                     onClick={() => handleDelete(admin.id, admin.username)}
@@ -164,7 +209,7 @@ export default function AdminManagement() {
                         <div className="bg-blue-900 text-white p-4 flex justify-between items-center rounded-t-xl">
                             <div className="flex items-center space-x-2">
                                 <Shield size={20} />
-                                <h3 className="text-lg font-bold">새 사용자 추가</h3>
+                                <h3 className="text-lg font-bold">{editingAdmin ? '사용자 수정' : '새 사용자 추가'}</h3>
                             </div>
                             <button onClick={() => setIsModalOpen(false)}><X size={20} /></button>
                         </div>
@@ -185,18 +230,23 @@ export default function AdminManagement() {
                                     type="text"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${editingAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     placeholder="사용할 아이디"
+                                    disabled={!!editingAdmin}
+                                    autoComplete="off"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    비밀번호 {editingAdmin && <span className="text-gray-400 text-xs">(변경 시에만 입력)</span>}
+                                </label>
                                 <input
                                     type="password"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    placeholder="비밀번호"
+                                    placeholder={editingAdmin ? "변경할 비밀번호" : "비밀번호"}
+                                    autoComplete="new-password"
                                 />
                             </div>
                             <div>
@@ -214,7 +264,7 @@ export default function AdminManagement() {
                         <div className="p-4 border-t border-gray-100 flex justify-end space-x-2">
                             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">취소</button>
                             <button onClick={handleSubmit} className="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-bold">
-                                추가하기
+                                {editingAdmin ? '수정하기' : '추가하기'}
                             </button>
                         </div>
                     </div>

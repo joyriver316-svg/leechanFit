@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Calendar, Settings, LogOut, Menu, Dumbbell, UserCog, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, LogOut, Menu, Dumbbell, UserCog, CreditCard, MessageSquare, Zap } from 'lucide-react';
+
+
 
 export default function Layout({ children, onNavigate, currentPage, onLogout }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -49,7 +51,7 @@ export default function Layout({ children, onNavigate, currentPage, onLogout }) 
             <div className="flex flex-1 pt-14">
                 {/* 2. Sidebar */}
                 <aside className={`
-                    fixed md:sticky top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-white border-r border-gray-200 flex flex-col z-40 transition-transform duration-300
+                    fixed md:sticky top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-white border-r border-gray-200 flex flex-col z-40 transition-transform duration-300 overflow-y-auto
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 `}>
                     <div className="p-4">
@@ -110,6 +112,14 @@ export default function Layout({ children, onNavigate, currentPage, onLogout }) 
                                 active={currentPage === 'products'}
                                 onClick={() => handleNavigate('products')}
                             />
+                            <NavItem
+                                icon={<MessageSquare size={20} />}
+                                label="메시지 템플릿"
+                                active={currentPage === 'message-templates'}
+                                onClick={() => handleNavigate('message-templates')}
+                            />
+
+
                         </nav>
                     </div>
 
